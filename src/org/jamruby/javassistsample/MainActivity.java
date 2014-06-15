@@ -7,10 +7,15 @@ import java.lang.reflect.Constructor;
 import javassist.ClassPool;
 import javassist.CtClass;
 import javassist.CtConstructor;
+import javassist.CtMethod;
 import javassist.android.DexFile;
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.view.MotionEvent;
+import android.view.View;
+import android.widget.RelativeLayout;
 import dalvik.system.DexClassLoader;
 
 public class MainActivity extends Activity {
@@ -44,8 +49,11 @@ public class MainActivity extends Activity {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
 
+		RelativeLayout content = new RelativeLayout(this);
+		content.setBackgroundColor(Color.WHITE);
+		this.setContentView(content);
+		
 		final File dexFile = new File(this.getFilesDir(), DEX_FILE_NAME_CLASSES);
 		if (dexFile.exists()) {
 			dexFile.delete();
@@ -60,8 +68,16 @@ public class MainActivity extends Activity {
 			final CtConstructor ctConstructor = new CtConstructor(new CtClass[]{cp.get("android.content.Context")}, ctViewExClass);
 			ctConstructor.setBody("{super($1);}");
 			ctViewExClass.addConstructor(ctConstructor);
+
+			CtMethod dispatchTouchEventMethod = CtMethod.make("public boolean dispatchTouchEvent("+MotionEvent.class.getName()+" event) {System.out.println(\"LETME before.\");boolean ret = super.dispatchTouchEvent(event);System.out.println(\"LETME after.\");return ret;}", ctViewExClass);
+			ctViewExClass.addMethod(dispatchTouchEventMethod);
+			
 			ctViewExClass.writeFile(getFilesDir().getAbsolutePath());
 
+			
+			
+			
+			
 			final Class<?> class_hoge = ClassHelper.convert2javaClass(ctViewExClass, this);
 
 			Constructor<?> constructor = null;
@@ -75,10 +91,15 @@ public class MainActivity extends Activity {
 
 			final Object obj = constructor.newInstance(this);
 
-			System.out.println("LETME : CLASS:" + obj.getClass());
-
+			System.out.println("LETME CLASS:" + obj.getClass());
+			System.out.println("LETME instanceof View : " + (obj instanceof View));
+			if (obj instanceof View) {
+				View view = (View) obj;
+				view.dispatchTouchEvent(null);
+			}
+			
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 	}
 }
